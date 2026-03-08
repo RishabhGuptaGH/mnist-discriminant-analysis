@@ -58,14 +58,9 @@ def stack_colums_in_data(dataset):
 
     return dataset
 
-
-
 #Task 2
 def compute_mean(data):
     data_list = data
-    
-    if not data_list:
-        return []
 
     n_samples = len(data_list)
     n_features = len(data_list[0])
@@ -109,75 +104,6 @@ def compute_mle(images, label):
             'prior':0.33
         }
     return parameters
-
-def get_pca(dataset, target_var):
-    images_c = dataset
-
-    N_c = len(images_c) - 1
-    mu_list = compute_mean(images_c)
-
-    images_c = np.array(images_c)        
-    mu = np.array(mu_list)
-
-    images_centered = images_c - mu
-    sigma = (images_centered.T @ images_centered) / N_c
-
-    eigenvalues, eigenvectors = np.linalg.eig(sigma)
-
-    sorted_indices = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[sorted_indices]
-    eigenvectors = eigenvectors[:, sorted_indices]
-
-    total_var   = np.sum(eigenvalues)
-    current_var = 0
-    idx = -1
-
-    for i in range(len(eigenvalues)):
-        current_var += eigenvalues[i]
-        if (current_var >= target_var*total_var):
-            idx = i
-            break
-
-    return eigenvectors[:, :idx+1]
-
-def get_fda(images, label):
-    classes = [0, 1, 2]
-    
-    global_mean = np.array(compute_mean(images))
-    features = train_x.shape[1]
-    S_w = np.zeros((features, features))
-    S_b = np.zeros((features, features))
-
-    for c in classes:
-        images_c = []
-        for i in range(len(label)):
-            if(label[i] == c):
-                images_c.append(images[i])
-        N_c = len(images_c)
-
-        mu = np.array(compute_mean(images_c))
-        images_c = np.array(images_c)
-
-        mean_centered = mu - global_mean
-        
-        S_b += (mean_centered.T @ mean_centered) * N_c
-
-        for x in images_c:
-            x_diff = (x - mu)
-            S_w += x_diff.T @ x_diff
-
-    # Added small noise for inverse
-    S_w = S_w + np.eye(len(mu)) * 1e-5
-    S_w_inv = np.linalg.inv(S_w)
-
-    eigenvalues, eigenvectors = np.linalg.eig(S_w_inv @ S_b)
-
-    sorted_indices = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[sorted_indices]
-    eigenvectors = eigenvectors[:, sorted_indices]
-
-    return eigenvectors[:, :2]
-
 
 #Task 3
 def calculate_lda(x, avg_cov_I, mu, mu_T, prior):
@@ -238,7 +164,6 @@ def calculate_accuracy(prediction, true_value):
         entries += 1
     return correct/entries
 
-
 def plot_tsne(X_train, y_train, X_test, y_test):
     print("\n   Generating t-SNE plots")
     X_combined = np.vstack([X_train, X_test])
@@ -263,7 +188,6 @@ def plot_tsne(X_train, y_train, X_test, y_test):
     
     plt.tight_layout()
     plt.show()
-
 
 def print_sample_discriminant(test_x, test_y, model_params, sample_idx):
     print(f"\n   Discriminant Values for Test Sample {sample_idx}")
@@ -298,97 +222,213 @@ def print_sample_discriminant(test_x, test_y, model_params, sample_idx):
         mu_T = mu.T        
         score = calculate_lda(sample_x, avg_cov_I, mu, mu_T, prior)
         print(f"     Class {c} Score: {score:.4f}")
+ 
+
+
+# Assignment 2 specific functions
+def get_pca(dataset, target_var):
+    images_c = dataset
+
+    N_c = len(images_c) - 1
+    mu_list = compute_mean(images_c)
+
+    images_c = np.array(images_c)        
+    mu = np.array(mu_list)
+
+    images_centered = images_c - mu
+    sigma = (images_centered.T @ images_centered) / N_c
+
+    eigenvalues, eigenvectors = np.linalg.eig(sigma)
+
+    eigenvalues = np.real(eigenvalues)
+    eigenvectors = np.real(eigenvectors)
+
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[sorted_indices]
+    eigenvectors = eigenvectors[:, sorted_indices]
+
+    total_var   = np.sum(eigenvalues)
+    current_var = 0
+    idx = -1
+
+    for i in range(len(eigenvalues)):
+        current_var += eigenvalues[i]
+        if (current_var >= target_var*total_var):
+            idx = i
+            break
+
+    return eigenvectors[:, :idx+1]
+
+def get_fda(images, label):
+    classes = [0, 1, 2]
     
+    global_mean = np.array(compute_mean(images))
+    features = train_x.shape[1]
+    S_w = np.zeros((features, features))
+    S_b = np.zeros((features, features))
+
+    for c in classes:
+        images_c = []
+        for i in range(len(label)):
+            if(label[i] == c):
+                images_c.append(images[i])
+        N_c = len(images_c)
+
+        mu = np.array(compute_mean(images_c))
+        images_c = np.array(images_c)
+
+        mean_centered = mu - global_mean
+        
+        S_b += (mean_centered.T @ mean_centered) * N_c
+
+        for x in images_c:
+            x_diff = (x - mu)
+            S_w += x_diff.T @ x_diff
+
+    # Added small noise for inverse
+    S_w = S_w + np.eye(len(mu)) * 1e-5
+    S_w_inv = np.linalg.inv(S_w)
+
+    eigenvalues, eigenvectors = np.linalg.eig(S_w_inv @ S_b)
+
+    eigenvalues = np.real(eigenvalues)
+    eigenvectors = np.real(eigenvectors)
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[sorted_indices]
+    eigenvectors = eigenvectors[:, sorted_indices]
+
+    return eigenvectors[:, :2]
+
+def reconstruct_pca(X_pca, W_pca, mu):
+    return (X_pca @ W_pca.T) + mu
+
+def calculate_mse(original, reconstructed):
+    return np.mean((original - reconstructed) ** 2)
+
+def plot_reconstructed_samples(original, reconstructed, num_samples=5):
+    plt.figure(figsize=(10, 4))
+    for i in range(num_samples):
+        plt.subplot(2, num_samples, i + 1)
+        plt.imshow(original[i].reshape((28, 28), order='F'), cmap='gray')
+        plt.title("Original")
+        plt.axis('off')
+
+        plt.subplot(2, num_samples, i + 1 + num_samples)
+        plt.imshow(reconstructed[i].reshape((28, 28), order='F'), cmap='gray')
+        plt.title("Reconstructed")
+        plt.axis('off')
+    plt.suptitle(f"PCA Reconstruction (Showing {num_samples} Samples)")
+    plt.tight_layout()
+    plt.show()
+
+def plot_2d_scatter(X_2d, y, title, xlabel, ylabel):
+    plt.figure(figsize=(8, 6))
+    colors = ['r', 'g', 'b']
+    markers = ['o', 's', '^']
+    for c, col, mk in zip([0, 1, 2], colors, markers):
+        plt.scatter(X_2d[y == c, 0], X_2d[y == c, 1], 
+                    c=col, marker=mk, label=f'Class {c}', alpha=0.7, edgecolors='k')
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.show()
+
 
 if __name__ == "__main__":
-
     
-    print("\n================= Summary =================")
+    print("\n================= Evaluate and Compare Performance =================")
     
-    # --- 1. DATA PREPROCESSING ---
+    # Load Data 
     train_x, train_y = get_train_test_data('train-images.idx3-ubyte','train-labels.idx1-ubyte', 100)
     test_x, test_y = get_train_test_data('t10k-images.idx3-ubyte', 't10k-labels.idx1-ubyte', 100)
 
-    # Convert to numpy arrays immediately so 'train_x.shape[1]' works inside 'get_fda'
     train_x = np.array(stack_colums_in_data(train_x))
     test_x = np.array(stack_colums_in_data(test_x))        
     train_y = np.array(train_y)
     test_y = np.array(test_y)
 
-    print(f"Data Loaded: Train Shape {train_x.shape}, Test Shape {test_x.shape}")
-
-    # --- 2. PCA PIPELINE ---
-    print("\n--- Running PCA Pipeline (95% Variance) ---")
-    W_pca = get_pca(train_x, 0.95)
-    print(f"PCA reduced original dimensions to: {W_pca.shape[1]}")
-    
-    # Project data for PCA
     mu_train = np.array(compute_mean(train_x))
-    train_pca = (train_x - mu_train) @ W_pca
-    test_pca = (test_x - mu_train) @ W_pca
-    
-    pca_params = compute_mle(train_pca, train_y)
-    
-    print("\n  PCA - QDA Accuracy:")
-    print(f"    Train Accuracy: {calculate_accuracy(predict_qda(train_pca, pca_params), train_y):.4f}")
-    print(f"    Test Accuracy:  {calculate_accuracy(predict_qda(test_pca, pca_params), test_y):.4f}")
-    
-    print("\n  PCA - LDA Accuracy:")
-    print(f"    Train Accuracy: {calculate_accuracy(predict_lda(train_pca, pca_params), train_y):.4f}")
-    print(f"    Test Accuracy:  {calculate_accuracy(predict_lda(test_pca, pca_params), test_y):.4f}")
 
-    # PCA 2D Visualization
-    train_pca_2d = (train_x - mu_train) @ W_pca[:, :2]
-    plt.figure(figsize=(8, 6))
-    colors = ['r', 'g', 'b']
-    markers = ['o', 's', '^']
-    for c, col, mk in zip([0, 1, 2], colors, markers):
-        plt.scatter(train_pca_2d[train_y == c, 0], train_pca_2d[train_y == c, 1], 
-                    c=col, marker=mk, label=f'Class {c}', alpha=0.7, edgecolors='k')
-    plt.title("PCA: 2D Projection of Training Data")
-    plt.xlabel('Principal Component 1')
-    plt.ylabel('Principal Component 2')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.5)
-    plt.show()
-
-    # --- 3. FDA PIPELINE ---
-    print("\n--- Running FDA Pipeline ---")
+    # --- 1. Apply FDA on the test set. Compute classification accuracy of LDA and QDA ---
+    print("\n--- 1. FDA Pipeline ---")
     W_fda = get_fda(train_x, train_y)
-    print(f"FDA reduced original dimensions to: {W_fda.shape[1]}")
     
-    # Project data for FDA (doesn't require standard mean-centering)
     train_fda = train_x @ W_fda
     test_fda = test_x @ W_fda
     
     fda_params = compute_mle(train_fda, train_y)
     
-    print("\n  FDA - QDA Accuracy:")
-    print(f"    Train Accuracy: {calculate_accuracy(predict_qda(train_fda, fda_params), train_y):.4f}")
-    print(f"    Test Accuracy:  {calculate_accuracy(predict_qda(test_fda, fda_params), test_y):.4f}")
+    print("FDA - LDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_fda, fda_params), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_fda, fda_params), test_y):.4f}")
     
-    print("\n  FDA - LDA Accuracy:")
-    print(f"    Train Accuracy: {calculate_accuracy(predict_lda(train_fda, fda_params), train_y):.4f}")
-    print(f"    Test Accuracy:  {calculate_accuracy(predict_lda(test_fda, fda_params), test_y):.4f}")
+    print("\nFDA - QDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_fda, fda_params), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_fda, fda_params), test_y):.4f}")
 
-    # FDA 2D Visualization
-    plt.figure(figsize=(8, 6))
-    for c, col, mk in zip([0, 1, 2], colors, markers):
-        plt.scatter(train_fda[train_y == c, 0], train_fda[train_y == c, 1], 
-                    c=col, marker=mk, label=f'Class {c}', alpha=0.7, edgecolors='k')
-    plt.title("FDA: 2D Projection of Training Data")
-    plt.xlabel('Discriminant Component 1')
-    plt.ylabel('Discriminant Component 2')
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.5)
-    plt.show()
+    # Plot FDA 2D Space
+    plot_2d_scatter(train_fda, train_y, "FDA: 2D Projection of Training Data", "Discriminant 1", "Discriminant 2")
 
-    # --- 4. ADDITIONAL ANALYSIS ---
-    print("\n--- Additional Analysis ---")
-    print_sample_discriminant(test_fda, test_y, fda_params, random.randint(0, len(test_y)-1))
+
+    # --- 2. Apply PCA and then apply LDA (75% Variance) & Reconstruction ---
+    print("\n--- 2. PCA Pipeline (75% Variance) ---")
+    W_pca_75 = get_pca(train_x, 0.75)
     
-    # Original t-SNE plot to keep original pipeline intact
-    plot_tsne(train_x, train_y, test_x, test_y)
+    train_pca_75 = (train_x - mu_train) @ W_pca_75
+    test_pca_75 = (test_x - mu_train) @ W_pca_75
+    
+    pca_params_75 = compute_mle(train_pca_75, train_y)
+    
+    print("PCA (75%) - LDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_75, pca_params_75), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_75, pca_params_75), test_y):.4f}")
 
-    print("\n--- Analysis Complete ---")
-    print("Refer to output terminal to see how PCA and FDA affect classification performance.")
+    # 2a. Reconstruct and show the result for 5 samples
+    print("\n--- PCA Reconstruction (75% Variance) ---")
+    test_reconstructed_75 = reconstruct_pca(test_pca_75, W_pca_75, mu_train)
+    mse_75 = calculate_mse(test_x, test_reconstructed_75)
+    print(f"Mean Squared Error (MSE) of 75% Variance Reconstruction: {mse_75:.4f}")
+    
+    # Plot the first 5 test samples
+    plot_reconstructed_samples(test_x[:5], test_reconstructed_75[:5], num_samples=5)
+
+
+    # --- 3. Analyse the accuracy by changing the variance to 90% ---
+    print("\n--- 3. PCA Pipeline (90% Variance) ---")
+    W_pca_90 = get_pca(train_x, 0.90)
+    
+    train_pca_90 = (train_x - mu_train) @ W_pca_90
+    test_pca_90 = (test_x - mu_train) @ W_pca_90
+    
+    pca_params_90 = compute_mle(train_pca_90, train_y)
+    
+    print("PCA (90%) - LDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_90, pca_params_90), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_90, pca_params_90), test_y):.4f}")
+
+    print("\nPCA (90%) - QDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_pca_90, pca_params_90), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_pca_90, pca_params_90), test_y):.4f}")
+
+
+    # --- 4. Analyse the accuracy by using only first two principal components ---
+    print("\n--- 4. PCA Pipeline (First 2 Principal Components) ---")
+    W_pca_2 = W_pca_90[:, :2]
+    
+    train_pca_2 = (train_x - mu_train) @ W_pca_2
+    test_pca_2 = (test_x - mu_train) @ W_pca_2
+    
+    pca_params_2 = compute_mle(train_pca_2, train_y)
+    
+    print("PCA (2 Components) - LDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_2, pca_params_2), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_2, pca_params_2), test_y):.4f}")
+
+    print("\nPCA (2 Components) - QDA Accuracy:")
+    print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_pca_2, pca_params_2), train_y):.4f}")
+    print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_pca_2, pca_params_2), test_y):.4f}")
+
+    # Plot PCA 2D Space
+    plot_2d_scatter(train_pca_2, train_y, "PCA: 2D Projection (First 2 Components)", "Principal Component 1", "Principal Component 2")
