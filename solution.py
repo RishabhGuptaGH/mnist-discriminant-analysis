@@ -289,7 +289,7 @@ def get_fda(images, label):
     S_w = S_w + np.eye(len(mu)) * 1e-5
     S_w_inv = np.linalg.inv(S_w)
 
-    eigenvalues, eigenvectors = np.linalg.eigh(S_w_inv @ S_b)
+    eigenvalues, eigenvectors = np.linalg.eig(S_w_inv @ S_b)
 
     eigenvalues = np.real(eigenvalues)
     eigenvectors = np.real(eigenvectors)
@@ -366,7 +366,7 @@ if __name__ == "__main__":
     print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_fda, fda_params), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_fda, fda_params), test_y):.4f}")
 
-    plot_2d_scatter(train_fda, train_y, "FDA: 2D Projection of Training Data", "Discriminant 1", "Discriminant 2")
+    plot_2d_scatter(test_fda, test_y, "FDA: 2D Projection of Testing Data", "Discriminant 1", "Discriminant 2")
 
 
     print("\n--- 2. PCA (75% Variance) ---")
