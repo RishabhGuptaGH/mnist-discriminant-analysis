@@ -238,7 +238,7 @@ def get_pca(dataset, target_var):
     images_centered = images_c - mu
     sigma = (images_centered.T @ images_centered) / N_c
 
-    eigenvalues, eigenvectors = np.linalg.eig(sigma)
+    eigenvalues, eigenvectors = np.linalg.eigh(sigma)
 
     eigenvalues = np.real(eigenvalues)
     eigenvectors = np.real(eigenvectors)
@@ -279,17 +279,17 @@ def get_fda(images, label):
 
         mean_centered = mu - global_mean
         
-        S_b += (mean_centered.T @ mean_centered) * N_c
+        S_b += np.outer(mean_centered, mean_centered) * N_c
 
         for x in images_c:
             x_diff = (x - mu)
-            S_w += x_diff.T @ x_diff
+            S_w += np.outer(x_diff, x_diff)
 
     # Added small noise for inverse
     S_w = S_w + np.eye(len(mu)) * 1e-5
     S_w_inv = np.linalg.inv(S_w)
 
-    eigenvalues, eigenvectors = np.linalg.eig(S_w_inv @ S_b)
+    eigenvalues, eigenvectors = np.linalg.eigh(S_w_inv @ S_b)
 
     eigenvalues = np.real(eigenvalues)
     eigenvectors = np.real(eigenvectors)
@@ -340,7 +340,6 @@ if __name__ == "__main__":
     
     print("\n================= Evaluate and Compare Performance =================")
     
-    # Load Data 
     train_x, train_y = get_train_test_data('train-images.idx3-ubyte','train-labels.idx1-ubyte', 100)
     test_x, test_y = get_train_test_data('t10k-images.idx3-ubyte', 't10k-labels.idx1-ubyte', 100)
 
@@ -351,8 +350,7 @@ if __name__ == "__main__":
 
     mu_train = np.array(compute_mean(train_x))
 
-    # --- 1. Apply FDA on the test set. Compute classification accuracy of LDA and QDA ---
-    print("\n--- 1. FDA Pipeline ---")
+    print("\n--- 1. FDA ---")
     W_fda = get_fda(train_x, train_y)
     
     train_fda = train_x @ W_fda
@@ -360,20 +358,18 @@ if __name__ == "__main__":
     
     fda_params = compute_mle(train_fda, train_y)
     
-    print("FDA - LDA Accuracy:")
+    print("LDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_fda, fda_params), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_fda, fda_params), test_y):.4f}")
     
-    print("\nFDA - QDA Accuracy:")
+    print("\nQDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_fda, fda_params), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_fda, fda_params), test_y):.4f}")
 
-    # Plot FDA 2D Space
     plot_2d_scatter(train_fda, train_y, "FDA: 2D Projection of Training Data", "Discriminant 1", "Discriminant 2")
 
 
-    # --- 2. Apply PCA and then apply LDA (75% Variance) & Reconstruction ---
-    print("\n--- 2. PCA Pipeline (75% Variance) ---")
+    print("\n--- 2. PCA (75% Variance) ---")
     W_pca_75 = get_pca(train_x, 0.75)
     
     train_pca_75 = (train_x - mu_train) @ W_pca_75
@@ -381,22 +377,18 @@ if __name__ == "__main__":
     
     pca_params_75 = compute_mle(train_pca_75, train_y)
     
-    print("PCA (75%) - LDA Accuracy:")
+    print("LDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_75, pca_params_75), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_75, pca_params_75), test_y):.4f}")
 
-    # 2a. Reconstruct and show the result for 5 samples
-    print("\n--- PCA Reconstruction (75% Variance) ---")
     test_reconstructed_75 = reconstruct_pca(test_pca_75, W_pca_75, mu_train)
     mse_75 = calculate_mse(test_x, test_reconstructed_75)
-    print(f"Mean Squared Error (MSE) of 75% Variance Reconstruction: {mse_75:.4f}")
+    print(f"Mean Squared Error (75% Variance) : {mse_75:.4f}")
     
-    # Plot the first 5 test samples
     plot_reconstructed_samples(test_x[:5], test_reconstructed_75[:5], num_samples=5)
 
 
-    # --- 3. Analyse the accuracy by changing the variance to 90% ---
-    print("\n--- 3. PCA Pipeline (90% Variance) ---")
+    print("\n--- 3. PCA (90% Variance) ---")
     W_pca_90 = get_pca(train_x, 0.90)
     
     train_pca_90 = (train_x - mu_train) @ W_pca_90
@@ -404,17 +396,19 @@ if __name__ == "__main__":
     
     pca_params_90 = compute_mle(train_pca_90, train_y)
     
-    print("PCA (90%) - LDA Accuracy:")
+    print("LDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_90, pca_params_90), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_90, pca_params_90), test_y):.4f}")
 
-    print("\nPCA (90%) - QDA Accuracy:")
+    print("\nQDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_pca_90, pca_params_90), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_pca_90, pca_params_90), test_y):.4f}")
 
+    test_reconstructed_90 = reconstruct_pca(test_pca_90, W_pca_90, mu_train)
+    mse_90 = calculate_mse(test_x, test_reconstructed_90)
+    print(f"Mean Squared Error (90% Variance) : {mse_90:.4f}")
 
-    # --- 4. Analyse the accuracy by using only first two principal components ---
-    print("\n--- 4. PCA Pipeline (First 2 Principal Components) ---")
+    print("\n--- 4. PCA (First 2 Principal Components) ---")
     W_pca_2 = W_pca_90[:, :2]
     
     train_pca_2 = (train_x - mu_train) @ W_pca_2
@@ -422,13 +416,12 @@ if __name__ == "__main__":
     
     pca_params_2 = compute_mle(train_pca_2, train_y)
     
-    print("PCA (2 Components) - LDA Accuracy:")
+    print("LDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_lda(train_pca_2, pca_params_2), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_lda(test_pca_2, pca_params_2), test_y):.4f}")
 
-    print("\nPCA (2 Components) - QDA Accuracy:")
+    print("\nQDA Accuracy:")
     print(f"  Train Accuracy: {calculate_accuracy(predict_qda(train_pca_2, pca_params_2), train_y):.4f}")
     print(f"  Test Accuracy:  {calculate_accuracy(predict_qda(test_pca_2, pca_params_2), test_y):.4f}")
 
-    # Plot PCA 2D Space
     plot_2d_scatter(train_pca_2, train_y, "PCA: 2D Projection (First 2 Components)", "Principal Component 1", "Principal Component 2")
